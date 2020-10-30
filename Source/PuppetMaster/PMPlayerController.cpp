@@ -4,7 +4,6 @@
 
 #include "PMCharacter.h"
 
-#include "Blueprint/AIBlueprintHelperLibrary.h"
 #include "Engine/World.h"
 #include "Net/UnrealNetwork.h"
 #include "Runtime/Engine/Classes/Components/DecalComponent.h"
@@ -33,12 +32,19 @@ void APMPlayerController::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 
 void APMPlayerController::SetSimulatedPawn(APawn* InPawn)
 {
-	SimulatedPawn = InPawn;
+	check(!IsValid(InPawn) || InPawn->IsA<APMCharacter>());
+
+	SimulatedPawn = Cast<APMCharacter>(InPawn);
 
 	if (SimulatedPawn)
 	{
 		SetViewTarget(SimulatedPawn);
 	}
+}
+
+APawn* APMPlayerController::GetSimulatedPawn() const
+{
+	return SimulatedPawn;
 }
 
 void APMPlayerController::OnRep_SimulatedPawn()
@@ -54,12 +60,6 @@ void APMPlayerController::ChangeState(FName NewState)
 void APMPlayerController::PlayerTick(float DeltaTime)
 {
 	Super::PlayerTick(DeltaTime);
-
-	// keep updating the destination every tick while desired
-	if (bMoveToMouseCursor)
-	{
-		MoveToMouseCursor();
-	}
 }
 
 void APMPlayerController::SetupInputComponent()
@@ -67,37 +67,17 @@ void APMPlayerController::SetupInputComponent()
 	// set up gameplay key bindings
 	Super::SetupInputComponent();
 
-	InputComponent->BindAction("SetDestination", IE_Pressed, this, &APMPlayerController::OnSetDestinationPressed);
-	InputComponent->BindAction("SetDestination", IE_Released, this, &APMPlayerController::OnSetDestinationReleased);
+	InputComponent->BindAction("SetDestination", IE_Pressed, this, &APMPlayerController::InputAction_SelectPressed);
 }
 
-void APMPlayerController::MoveToMouseCursor()
+void APMPlayerController::SetNewMoveDestination(const FVector& DestLocation)
 {
-	// Trace to see what is under the mouse cursor
-	FHitResult Hit;
-	GetHitResultUnderCursor(ECC_Visibility, false, Hit);
+	check(IsValid(SimulatedPawn) && SimulatedPawn->IsAlive());
 
-	if (Hit.bBlockingHit)
-	{
-		// We hit something, move there
-		SetNewMoveDestination(Hit.ImpactPoint);
-	}
-}
-
-void APMPlayerController::SetNewMoveDestination(const FVector DestLocation)
-{
 	if (HasAuthority())
 	{
-		if (SimulatedPawn)
-		{
-			float const Distance = FVector::Dist(DestLocation, SimulatedPawn->GetActorLocation());
-
-			// We need to issue move command only if far enough in order for walk animation to play correctly
-			if ((Distance > 120.0f))
-			{
-				UAIBlueprintHelperLibrary::SimpleMoveToLocation(SimulatedPawn->GetController(), DestLocation);
-			}
-		}
+		SimulatedPawn->MoveTo(DestLocation);
+		
 	}
 	else
 	{
@@ -105,37 +85,65 @@ void APMPlayerController::SetNewMoveDestination(const FVector DestLocation)
 	}
 }
 
-void APMPlayerController::ServerSetNewMoveDestination_Implementation(const FVector DestLocation)
+void APMPlayerController::ServerSetNewMoveDestination_Implementation(const FVector& DestLocation)
 {
 	SetNewMoveDestination(DestLocation);
 }
 
-void APMPlayerController::OnSetDestinationPressed()
+void APMPlayerController::SetFollowTarget(const APMCharacter* Target)
 {
-	// set flag to keep updating destination until released
-	bMoveToMouseCursor = true;
+	check(IsValid(SimulatedPawn) && SimulatedPawn->IsAlive());
+
+	if (HasAuthority() && IsValid(Target))
+	{
+		SimulatedPawn->Follow(*Target);
+	}
+	else
+	{
+		ServerSetFollowTarget(Target);
+	}
 }
 
-void APMPlayerController::OnSetDestinationReleased()
+void APMPlayerController::ServerSetFollowTarget_Implementation(const APMCharacter* Target)
 {
-	// clear flag to indicate we should stop updating the destination
-	bMoveToMouseCursor = false;
+	SetFollowTarget(Target);
 }
+
+void APMPlayerController::InputAction_SelectPressed()
+{
+	// Trace to see what is under the mouse cursor
+	FHitResult Hit;
+	GetHitResultUnderCursor(ECC_Visibility, false, Hit);
+
+	if (Hit.bBlockingHit)
+	{
+		if (Hit.Actor.IsValid() && Hit.Actor->IsA<APMCharacter>())
+		{
+			SetFollowTarget(static_cast<APMCharacter*>(Hit.GetActor()));
+		}
+		else
+		{
+			// We hit something, move there
+			SetNewMoveDestination(Hit.ImpactPoint);
+		}
+	}
+}
+
 
 void APMPlayerState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	DOREPLIFETIME(APMPlayerState, Status);
+	DOREPLIFETIME(APMPlayerState, MatchStatus);
 }
 
 void APMPlayerState::SetReady()
 {
-	if (Status == EPlayerStatus::NotReady)
+	if (MatchStatus == EPlayerMatchStatus::NotReady)
 	{
 		if (HasAuthority())
 		{
-			Status = EPlayerStatus::Ready;
+			MatchStatus = EPlayerMatchStatus::Ready;
 		}
 		else
 		{

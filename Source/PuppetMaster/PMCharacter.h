@@ -7,6 +7,16 @@
 
 #include "PMCharacter.generated.h"
 
+// #todo: this is for art - what state is this body in
+UENUM(BlueprintType)
+enum class EBodyState : uint8
+{
+	Alive,
+	PassedOut,
+	Killer,
+	Dead
+};
+
 UCLASS(Blueprintable)
 class APMCharacter : public ACharacter
 {
@@ -14,21 +24,42 @@ class APMCharacter : public ACharacter
 
 public:
 
+	bool IsAlive() const { return Health > 0; }
+
+	void MoveTo(const FVector& Location);
+	void Follow(const APMCharacter& Leader);
+
+	bool TryToKill(const APMCharacter& Perpetrator, int32 HitPoints);
+	void AdjustHealth(const AActor& DamageCauser, int32 AdjustAmount);
+
+	class UCameraComponent* GetTopDownCameraComponent() const { return TopDownCameraComponent; }
+	class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
+	class UDecalComponent* GetCursorToWorld() { return CursorToWorld; }
+
+protected:
+
 	APMCharacter(const FObjectInitializer& OI);
 
 	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	void PreReplication(IRepChangedPropertyTracker& ChangedPropertyTracker) override;
 
+	void PossessedBy(AController* NewController) override;
+
 	void Tick(float DeltaSeconds) override;
 
-	FORCEINLINE class UCameraComponent* GetTopDownCameraComponent() const { return TopDownCameraComponent; }
-	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
-	FORCEINLINE class UDecalComponent* GetCursorToWorld() { return CursorToWorld; }
-
-	UPROPERTY(Replicated, BlueprintReadOnly)
-	TArray<FVector_NetQuantize> ReplicatedPath;
+	void PassOut();
+	void Die(const APMCharacter& Perpetrator);
 
 private:
+
+	UPROPERTY(Replicated, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	int32 Health = 1;
+
+	// #todo
+	int32 HealthMax = 1;
+
+	UPROPERTY(Replicated, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	TArray<FVector_NetQuantize> ReplicatedPath;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class UCameraComponent* TopDownCameraComponent;
@@ -38,4 +69,8 @@ private:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class UDecalComponent* CursorToWorld;
+
+	UPROPERTY(Transient)
+	class UPathFollowingComponent* PathFollowingComponent = nullptr;
+
 };

@@ -2,11 +2,14 @@
 
 #include "PMCharacter.h"
 
+#include "PMPlayerController.h" // for playerstate
+
 #include "DrawDebugHelpers.h"
 #include "Camera/CameraComponent.h"
 #include "Components/DecalComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Engine/World.h"
+#include "Blueprint/AIBlueprintHelperLibrary.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -76,41 +79,44 @@ void APMCharacter::PreReplication(IRepChangedPropertyTracker& ChangedPropertyTra
 	Super::PreReplication(ChangedPropertyTracker);
 
 	ReplicatedPath.Reset();
-	if (GetController())
+	if (IsValid(PathFollowingComponent) && PathFollowingComponent->GetPath().IsValid())
 	{
-		UPathFollowingComponent* PathComponent = GetController()->FindComponentByClass<UPathFollowingComponent>();
-		if (PathComponent && PathComponent->GetPath().IsValid())
+		int32 CurrentPathIndex = PathFollowingComponent->GetCurrentPathIndex();
+		const TArray<FNavPathPoint>& NavPoints = PathFollowingComponent->GetPath()->GetPathPoints();
+		ReplicatedPath.Reset(NavPoints.Num());
+		for (int32 i = 0; i < NavPoints.Num(); ++i)
 		{
-			int32 CurrentPathIndex = PathComponent->GetCurrentPathIndex();
-			const TArray<FNavPathPoint>& NavPoints = PathComponent->GetPath()->GetPathPoints();
-			ReplicatedPath.Reset(NavPoints.Num());
-			for (int32 i = 0; i < NavPoints.Num(); ++i)
+			if (i > CurrentPathIndex)
 			{
-				if (i > CurrentPathIndex)
-				{
-					const FNavPathPoint& NavPoint = NavPoints[i];
-					ReplicatedPath.Add(NavPoint.Location);
-				}
+				const FNavPathPoint& NavPoint = NavPoints[i];
+				ReplicatedPath.Add(NavPoint.Location);
 			}
 		}
 	}
+}
+
+void APMCharacter::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+	check(NewController);
+
+	PathFollowingComponent = NewController->FindComponentByClass<UPathFollowingComponent>();
+
+	// playerstate isn't set yet at this point
 }
 
 void APMCharacter::Tick(float DeltaSeconds)
 {
     Super::Tick(DeltaSeconds);
 
-	if (CursorToWorld != nullptr)
+	if (ReplicatedPath.Num() > 0)
 	{
-		if (APlayerController* PC = Cast<APlayerController>(GetController()))
-		{
-			FHitResult TraceHitResult;
-			PC->GetHitResultUnderCursor(ECC_Visibility, true, TraceHitResult);
-			FVector CursorFV = TraceHitResult.ImpactNormal;
-			FRotator CursorR = CursorFV.Rotation();
-			CursorToWorld->SetWorldLocation(TraceHitResult.Location);
-			CursorToWorld->SetWorldRotation(CursorR);
-		}
+		CursorToWorld->SetVisibility(true);
+		CursorToWorld->SetWorldLocation(ReplicatedPath.Last());
+	}
+	else
+	{
+		CursorToWorld->SetVisibility(false);
 	}
 
 	FVector PrevPoint = GetActorLocation();
@@ -120,3 +126,71 @@ void APMCharacter::Tick(float DeltaSeconds)
 		PrevPoint = CurrentPoint;
 	}
 }
+
+void APMCharacter::MoveTo(const FVector& Location)
+{
+	check(HasAuthority());
+	check(GetController());
+	check(IsAlive());
+
+	float const Distance = FVector::Dist(Location, GetActorLocation());
+
+	// We need to issue move command only if far enough in order for walk animation to play correctly
+	if ((Distance > 120.0f))
+	{
+		UAIBlueprintHelperLibrary::SimpleMoveToLocation(GetController(), Location);
+	}
+}
+
+void APMCharacter::Follow(const APMCharacter& Leader)
+{
+	check(HasAuthority());
+	check(GetController());
+	check(IsAlive());
+
+	UAIBlueprintHelperLibrary::SimpleMoveToActor(GetController(), &Leader);
+}
+
+bool APMCharacter::TryToKill(const APMCharacter& Perpetrator, int32 HitPoints)
+{
+	check(HasAuthority());
+	check(GetController());
+	check(IsAlive());
+
+	AdjustHealth(Perpetrator, -HitPoints);
+
+	if (IsAlive())
+	{
+		PassOut();
+		return false;
+	}
+	else
+	{
+		Die(Perpetrator);
+		return true;
+	}
+}
+
+void APMCharacter::AdjustHealth(const AActor& DamageCauser, int32 AdjustAmount)
+{
+	check(HasAuthority());
+	check(GetController());
+	check(IsAlive());
+
+	Health = FMath::Clamp(Health + AdjustAmount, 0, HealthMax);
+}
+
+void APMCharacter::PassOut()
+{
+	check(HasAuthority());
+	check(GetController());
+	check(IsAlive());
+}
+
+void APMCharacter::Die(const APMCharacter& Perpetrator)
+{
+	check(GetController()); // we shouldn't be able to die if we're already dead
+
+	GetController()->Destroy();
+}
+

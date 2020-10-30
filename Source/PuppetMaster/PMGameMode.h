@@ -7,11 +7,14 @@
 
 #include "PMGameMode.generated.h"
 
+class APMCharacter;
+
 UENUM(BlueprintType)
 enum class EMatchState : uint8
 {
 	WaitingToStart,
 	Investigation,
+	Discussion,
 	Voting,
 	Deliberation,
 	PostMatch
@@ -28,10 +31,20 @@ public:
 
 protected:
 
+	class APMGameState* GetPMGameState() const;
+
 	void InitGameState() override;
 	void StartPlay() override;
 
 	void Tick(float DeltaSeconds) override;
+
+	void EnterInvestigationState();
+	void EnterDiscussionState();
+	void EnterVotingState();
+	void EnterDeliberationState();
+
+	void ReportBody(const APMCharacter& ReportingCharacter, const APMCharacter& DeadCharacter);
+	void CallMeeting(const APMCharacter& ReportingCharacter);
 
 	void HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer) override;
 	void RestartPlayerAtPlayerStart(AController* NewPlayer, AActor* StartSpot) override;
@@ -43,6 +56,15 @@ protected:
 
 	UPROPERTY(config)
 	float StartDelay = 3.f;
+
+	UPROPERTY(config)
+	float DiscussionLength = 30.f;
+
+	UPROPERTY(config)
+	float VotingLength = 30.f;
+
+	UPROPERTY(config)
+	float DeliberationLength = 10.f;
 
 };
 

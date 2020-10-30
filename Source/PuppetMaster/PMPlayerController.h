@@ -7,6 +7,8 @@
 
 #include "PMPlayerController.generated.h"
 
+class APMCharacter;
+
 UCLASS()
 class APMPlayerController : public APlayerController
 {
@@ -19,15 +21,12 @@ public:
 	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
 	void SetSimulatedPawn(APawn* InPawn);
-	APawn* GetSimulatedPawn() const { return SimulatedPawn; }
+	APawn* GetSimulatedPawn() const;
 
 protected:
 
 	UPROPERTY(Transient, ReplicatedUsing=OnRep_SimulatedPawn)
-	APawn* SimulatedPawn = nullptr;
-
-	/** True if the controlled character should navigate to the mouse cursor. */
-	uint32 bMoveToMouseCursor : 1;
+	APMCharacter* SimulatedPawn = nullptr;
 
 	UFUNCTION()
 	void OnRep_SimulatedPawn();
@@ -38,31 +37,41 @@ protected:
 	void SetupInputComponent() override;
 	ASpectatorPawn* SpawnSpectatorPawn() override { return nullptr; }
 	// End PlayerController interface
-
-	/** Navigate player to the current mouse cursor location. */
-	void MoveToMouseCursor();
 	
 	/** Navigate player to the given world location. */
-	void SetNewMoveDestination(const FVector DestLocation);
+	void SetNewMoveDestination(const FVector& DestLocation);
 
-	UFUNCTION(Server, Unreliable, WithValidation)
-	void ServerSetNewMoveDestination(const FVector DestLocation);
-	void ServerSetNewMoveDestination_Implementation(const FVector DestLocation);
-	bool ServerSetNewMoveDestination_Validate(const FVector DestLocation) const { return true; }
+	UFUNCTION(Server, Reliable, WithValidation)
+	void ServerSetNewMoveDestination(const FVector& DestLocation);
+	void ServerSetNewMoveDestination_Implementation(const FVector& DestLocation);
+	bool ServerSetNewMoveDestination_Validate(const FVector& DestLocation) const { return true; }
+
+	void SetFollowTarget(const APMCharacter* Target);
+
+	UFUNCTION(Server, Reliable, WithValidation)
+	void ServerSetFollowTarget(const APMCharacter* Target);
+	void ServerSetFollowTarget_Implementation(const APMCharacter* Target);
+	bool ServerSetFollowTarget_Validate(const APMCharacter* Target) const { return true; }
 
 	/** Input handlers for SetDestination action. */
-	void OnSetDestinationPressed();
-	void OnSetDestinationReleased();
+	void InputAction_SelectPressed();
 };
 
 UENUM(BlueprintType)
-enum class EPlayerStatus : uint8
+enum class EPlayerMatchStatus : uint8
 {
 	NotReady,
 	Ready,
 	Alive,
 	Dead,
 	Disconnected
+};
+
+UENUM(BlueprintType)
+enum class EPlayerVoteStatus : uint8
+{
+	NoVote,
+	Voted,
 };
 
 UCLASS()
@@ -72,8 +81,6 @@ class APMPlayerState : public APlayerState
 
 public:
 
-	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const;
-
 	UFUNCTION(BlueprintCallable)
 	void SetReady();
 
@@ -82,16 +89,23 @@ public:
 	void ServerSetReady_Implementation();
 	bool ServerSetReady_Validate() const { return true; }
 
-	bool IsReady() const { return Status == EPlayerStatus::Ready; }
+	bool IsReady() const { return MatchStatus == EPlayerMatchStatus::Ready; }
 
-	void SetStatus(EPlayerStatus NewStatus) { Status = NewStatus; }
+	void SetStatus(EPlayerMatchStatus NewStatus) { MatchStatus = NewStatus; }
 
 	UFUNCTION(BlueprintPure)
-	EPlayerStatus GetStatus() const { return Status; }
+	EPlayerMatchStatus GetStatus() const { return MatchStatus; }
+
+protected:
+
+	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const;
 
 private:
 
 	UPROPERTY(Replicated)
-	EPlayerStatus Status;
+	EPlayerMatchStatus MatchStatus;
+
+	UPROPERTY(Replicated)
+	EPlayerVoteStatus VoteStatus;
 
 };

@@ -46,12 +46,12 @@ protected:
 	void ServerSetNewMoveDestination_Implementation(const FVector& DestLocation);
 	bool ServerSetNewMoveDestination_Validate(const FVector& DestLocation) const { return true; }
 
-	void SetFollowTarget(const APMCharacter* Target);
+	void SetFollowTarget(APMCharacter* Target);
 
 	UFUNCTION(Server, Reliable, WithValidation)
-	void ServerSetFollowTarget(const APMCharacter* Target);
-	void ServerSetFollowTarget_Implementation(const APMCharacter* Target);
-	bool ServerSetFollowTarget_Validate(const APMCharacter* Target) const { return true; }
+	void ServerSetFollowTarget(APMCharacter* Target);
+	void ServerSetFollowTarget_Implementation(APMCharacter* Target);
+	bool ServerSetFollowTarget_Validate(APMCharacter* Target) const { return true; }
 
 	/** Input handlers for SetDestination action. */
 	void InputAction_SelectPressed();

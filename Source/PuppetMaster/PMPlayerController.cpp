@@ -8,6 +8,8 @@
 #include "Net/UnrealNetwork.h"
 #include "Runtime/Engine/Classes/Components/DecalComponent.h"
 
+DECLARE_LOG_CATEGORY_CLASS(LogPMPlayerController, Warning, All)
+
 APMPlayerController::APMPlayerController()
 {
 	bShowMouseCursor = true;
@@ -72,7 +74,7 @@ void APMPlayerController::SetupInputComponent()
 
 void APMPlayerController::SetNewMoveDestination(const FVector& DestLocation)
 {
-	check(IsValid(SimulatedPawn) && SimulatedPawn->IsAlive());
+	check(IsValid(SimulatedPawn));
 
 	if (HasAuthority())
 	{
@@ -87,16 +89,28 @@ void APMPlayerController::SetNewMoveDestination(const FVector& DestLocation)
 
 void APMPlayerController::ServerSetNewMoveDestination_Implementation(const FVector& DestLocation)
 {
+	if (!SimulatedPawn->IsAlive())
+	{
+		UE_LOG(LogPMPlayerController, Error, TEXT("Attempted to move dead pawn"));
+		return;
+	}
+
 	SetNewMoveDestination(DestLocation);
 }
 
-void APMPlayerController::SetFollowTarget(const APMCharacter* Target)
+void APMPlayerController::SetFollowTarget(APMCharacter* Target)
 {
 	check(IsValid(SimulatedPawn) && SimulatedPawn->IsAlive());
 
+	// #todo: we may want to move to a target regardless of its health
+	if (!IsValid(Target) || !Target->IsAlive())
+	{
+		return;
+	}
+
 	if (HasAuthority() && IsValid(Target))
 	{
-		SimulatedPawn->Follow(*Target);
+		SimulatedPawn->MoveToActorAndPerformAction(*Target);
 	}
 	else
 	{
@@ -104,27 +118,43 @@ void APMPlayerController::SetFollowTarget(const APMCharacter* Target)
 	}
 }
 
-void APMPlayerController::ServerSetFollowTarget_Implementation(const APMCharacter* Target)
+void APMPlayerController::ServerSetFollowTarget_Implementation(APMCharacter* Target)
 {
+	if (!SimulatedPawn->IsAlive())
+	{
+		UE_LOG(LogPMPlayerController, Error, TEXT("Attempted to move dead pawn"));
+		return;
+	}
+
 	SetFollowTarget(Target);
 }
 
 void APMPlayerController::InputAction_SelectPressed()
 {
-	// Trace to see what is under the mouse cursor
-	FHitResult Hit;
-	GetHitResultUnderCursor(ECC_Visibility, false, Hit);
-
-	if (Hit.bBlockingHit)
+	if (IsValid(SimulatedPawn))
 	{
-		if (Hit.Actor.IsValid() && Hit.Actor->IsA<APMCharacter>())
+		if (!SimulatedPawn->IsAlive())
 		{
-			SetFollowTarget(static_cast<APMCharacter*>(Hit.GetActor()));
+			UE_LOG(LogPMPlayerController, Error, TEXT("Attempted to move dead pawn"));
+			return;
 		}
-		else
+
+		// Trace to see what is under the mouse cursor
+		FHitResult Hit;
+		GetHitResultUnderCursor(ECC_Visibility, false, Hit);
+
+		if (Hit.bBlockingHit)
 		{
-			// We hit something, move there
-			SetNewMoveDestination(Hit.ImpactPoint);
+			APMCharacter* PMCharacter = Cast<APMCharacter>(Hit.GetActor());
+			if (IsValid(PMCharacter) && (PMCharacter != SimulatedPawn) && PMCharacter->IsAlive())
+			{
+				SetFollowTarget(static_cast<APMCharacter*>(Hit.GetActor()));
+			}
+			else
+			{
+				// We hit something, move there
+				SetNewMoveDestination(Hit.ImpactPoint);
+			}
 		}
 	}
 }

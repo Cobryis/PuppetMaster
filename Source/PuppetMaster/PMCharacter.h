@@ -17,6 +17,9 @@ enum class EBodyState : uint8
 	Dead
 };
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FIncapacitated);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRevived);
+
 UCLASS(Blueprintable)
 class APMCharacter : public ACharacter
 {
@@ -27,7 +30,7 @@ public:
 	bool IsAlive() const { return Health > 0; }
 
 	void MoveTo(const FVector& Location);
-	void Follow(const APMCharacter& Leader);
+	void MoveToActorAndPerformAction(APMCharacter& Victim);
 
 	bool TryToKill(const APMCharacter& Perpetrator, int32 HitPoints);
 	void AdjustHealth(const AActor& DamageCauser, int32 AdjustAmount);
@@ -50,7 +53,19 @@ protected:
 	void PassOut();
 	void Die(const APMCharacter& Perpetrator);
 
+	UPROPERTY(BlueprintAssignable)
+	FIncapacitated OnIncapacitated;
+
+	UPROPERTY(BlueprintAssignable)
+	FRevived OnRevived;
+
 private:
+
+	UPROPERTY(ReplicatedUsing=OnRep_Incapacitated)
+	bool bIncapacitated = false;
+
+	UFUNCTION()
+	void OnRep_Incapacitated();
 
 	UPROPERTY(Replicated, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	int32 Health = 1;
@@ -72,5 +87,8 @@ private:
 
 	UPROPERTY(Transient)
 	class UPathFollowingComponent* PathFollowingComponent = nullptr;
+
+	TWeakObjectPtr<APMCharacter> CurrentTarget;
+	FDelegateHandle FollowHandle;
 
 };

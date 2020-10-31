@@ -72,6 +72,8 @@ void APMCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLife
 	ACharacter::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(APMCharacter, ReplicatedPath);
+	DOREPLIFETIME(APMCharacter, Health);
+	DOREPLIFETIME(APMCharacter, bIncapacitated);
 }
 
 void APMCharacter::PreReplication(IRepChangedPropertyTracker& ChangedPropertyTracker)
@@ -142,13 +144,36 @@ void APMCharacter::MoveTo(const FVector& Location)
 	}
 }
 
-void APMCharacter::Follow(const APMCharacter& Leader)
+void APMCharacter::MoveToActorAndPerformAction(APMCharacter& Target)
 {
 	check(HasAuthority());
 	check(GetController());
 	check(IsAlive());
 
-	UAIBlueprintHelperLibrary::SimpleMoveToActor(GetController(), &Leader);
+	check(&Target != this);
+	check(PathFollowingComponent);
+
+	CurrentTarget = &Target;
+
+	PathFollowingComponent->AbortMove(*GetController(), FPathFollowingResultFlags::NewRequest, FAIRequestID::CurrentRequest, EPathFollowingVelocityMode::Keep);
+	FollowHandle = PathFollowingComponent->OnRequestFinished.AddLambda
+	(
+		[this](FAIRequestID RequestID, const FPathFollowingResult& Result)
+		{
+			if (Result.Code == EPathFollowingResult::Success)
+			{
+				APMCharacter* Victim = Cast<APMCharacter>(CurrentTarget.Get());
+				if (IsValid(Victim) && Victim->IsAlive())
+				{
+					Victim->TryToKill(*this, 1);
+				}
+			}
+
+			CurrentTarget.Reset();
+			FollowHandle.Reset();
+		}
+	);
+	UAIBlueprintHelperLibrary::SimpleMoveToActor(GetController(), &Target);
 }
 
 bool APMCharacter::TryToKill(const APMCharacter& Perpetrator, int32 HitPoints)
@@ -185,12 +210,32 @@ void APMCharacter::PassOut()
 	check(HasAuthority());
 	check(GetController());
 	check(IsAlive());
+
+	bIncapacitated = true;
+
+	OnIncapacitated.Broadcast();
 }
 
 void APMCharacter::Die(const APMCharacter& Perpetrator)
 {
 	check(GetController()); // we shouldn't be able to die if we're already dead
 
+	bIncapacitated = true;
+
+	OnIncapacitated.Broadcast();
+
 	GetController()->Destroy();
+}
+
+void APMCharacter::OnRep_Incapacitated()
+{
+	if (bIncapacitated)
+	{
+		OnIncapacitated.Broadcast();
+	}
+	else
+	{
+		OnRevived.Broadcast();
+	}
 }
 

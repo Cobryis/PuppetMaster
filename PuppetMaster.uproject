@@ -12,6 +12,10 @@
 	],
 	"Plugins": [
 		{
+			"Name": "ProceduralMeshComponent",
+			"Enabled": false
+		},
+		{
 			"Name": "GooglePAD",
 			"Enabled": false
 		},

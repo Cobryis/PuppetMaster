@@ -139,9 +139,11 @@ void APMPlayerController::InputAction_SelectPressed()
 			return;
 		}
 
+		constexpr auto ECC_Selectable = ECC_GameTraceChannel1;
+
 		// Trace to see what is under the mouse cursor
 		FHitResult Hit;
-		GetHitResultUnderCursor(ECC_Visibility, false, Hit);
+		GetHitResultUnderCursor(ECC_Selectable, false, Hit);
 
 		if (Hit.bBlockingHit)
 		{

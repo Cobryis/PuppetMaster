@@ -28,16 +28,13 @@ class APMCharacter : public ACharacter
 public:
 
 	bool IsAlive() const { return Health > 0; }
+	bool IsIncapacitated() const { return bIncapacitated; }
 
 	void MoveTo(const FVector& Location);
 	void MoveToActorAndPerformAction(APMCharacter& Victim);
 
 	bool TryToKill(const APMCharacter& Perpetrator, int32 HitPoints);
 	void AdjustHealth(const AActor& DamageCauser, int32 AdjustAmount);
-
-	class UCameraComponent* GetTopDownCameraComponent() const { return TopDownCameraComponent; }
-	class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
-	class UDecalComponent* GetCursorToWorld() { return CursorToWorld; }
 
 protected:
 
@@ -46,12 +43,16 @@ protected:
 	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	void PreReplication(IRepChangedPropertyTracker& ChangedPropertyTracker) override;
 
+	void BeginPlay() override;
 	void PossessedBy(AController* NewController) override;
 
 	void Tick(float DeltaSeconds) override;
 
 	void PassOut();
 	void Die(const APMCharacter& Perpetrator);
+
+	void Incapacitated();
+	void Revived();
 
 	UPROPERTY(BlueprintAssignable)
 	FIncapacitated OnIncapacitated;
@@ -71,19 +72,16 @@ private:
 	int32 Health = 1;
 
 	// #todo
-	int32 HealthMax = 1;
+	int32 HealthMax = 2;
 
 	UPROPERTY(Replicated, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	TArray<FVector_NetQuantize> ReplicatedPath;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
-	class UCameraComponent* TopDownCameraComponent;
+	class UCameraComponent* CameraComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
-	class USpringArmComponent* CameraBoom;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
-	class UDecalComponent* CursorToWorld;
+	class USpringArmComponent* CameraBoomComponent;
 
 	UPROPERTY(Transient)
 	class UPathFollowingComponent* PathFollowingComponent = nullptr;

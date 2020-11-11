@@ -5,6 +5,9 @@
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
+#include "GameplayCueInterface.h"
+#include "GameplayTagAssetInterface.h"
+
 #include "PMCharacter.generated.h"
 
 // #todo: this is for art - what state is this body in
@@ -21,7 +24,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FIncapacitated);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRevived);
 
 UCLASS(Blueprintable)
-class APMCharacter : public ACharacter
+class APMCharacter : public ACharacter, public IGameplayCueInterface, public IGameplayTagAssetInterface
 {
 	GENERATED_BODY()
 
@@ -88,5 +91,10 @@ private:
 
 	TWeakObjectPtr<APMCharacter> CurrentTarget;
 	FDelegateHandle FollowHandle;
+
+	UPROPERTY(EditAnywhere)
+	FGameplayTagContainer GameplayTags;
+
+	void GetOwnedGameplayTags(FGameplayTagContainer& TagContainer) const override;
 
 };

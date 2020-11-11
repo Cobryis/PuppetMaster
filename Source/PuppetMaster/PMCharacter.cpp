@@ -274,3 +274,8 @@ void APMCharacter::OnRep_Incapacitated()
 	}
 }
 
+void APMCharacter::GetOwnedGameplayTags(FGameplayTagContainer& TagContainer) const
+{
+	TagContainer = GameplayTags;
+}
+

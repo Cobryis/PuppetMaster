@@ -33,7 +33,7 @@ void APMPlayerController::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 {
 	AController::GetLifetimeReplicatedProps(OutLifetimeProps);
 
-	ResetReplicatedLifetimeProperty(StaticClass(), AController::StaticClass(), TEXT("Pawn"), COND_Never, OutLifetimeProps);
+	// ResetReplicatedLifetimeProperty(StaticClass(), AController::StaticClass(), TEXT("Pawn"), COND_Never, OutLifetimeProps);
 
 	DOREPLIFETIME(APMPlayerController, SimulatedPawn);
 	DOREPLIFETIME_CONDITION(APMPlayerController, AbilitySystemActor, COND_InitialOnly);

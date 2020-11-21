@@ -5,6 +5,7 @@
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
+#include "AbilitySystemInterface.h"
 #include "GameplayCueInterface.h"
 #include "GameplayTagAssetInterface.h"
 
@@ -24,7 +25,10 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FIncapacitated);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRevived);
 
 UCLASS(Blueprintable)
-class APMCharacter : public ACharacter, public IGameplayCueInterface, public IGameplayTagAssetInterface
+class APMCharacter : public ACharacter
+	, public IAbilitySystemInterface
+	, public IGameplayCueInterface
+	, public IGameplayTagAssetInterface
 {
 	GENERATED_BODY()
 
@@ -38,6 +42,8 @@ public:
 
 	bool TryToKill(const APMCharacter& Perpetrator, int32 HitPoints);
 	void AdjustHealth(const AActor& DamageCauser, int32 AdjustAmount);
+
+	UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 
 protected:
 

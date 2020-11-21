@@ -4,6 +4,7 @@
 
 #include "PMPlayerController.h" // for playerstate
 
+#include "AbilitySystemGlobals.h"
 #include "DrawDebugHelpers.h"
 #include "Camera/CameraComponent.h"
 #include "Components/DecalComponent.h"
@@ -205,6 +206,12 @@ void APMCharacter::AdjustHealth(const AActor& DamageCauser, int32 AdjustAmount)
 	check(IsAlive());
 
 	Health = FMath::Clamp(Health + AdjustAmount, 0, HealthMax);
+}
+
+// #fixme: this only works on authority and auto right now.. 
+UAbilitySystemComponent* APMCharacter::GetAbilitySystemComponent() const
+{
+	return GetController() ? UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetController()) : nullptr;
 }
 
 void APMCharacter::PassOut()

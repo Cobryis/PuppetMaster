@@ -12,8 +12,7 @@ public class PuppetMaster : ModuleRules
 		{ 
 			"Core", "CoreUObject", "Engine", "InputCore",
 			"NavigationSystem", "AIModule",
-			"GameplayAbilities",
-			"GameplayTags"
+			"GameplayAbilities", "GameplayTasks", "GameplayTags",
 		});
     }
 }

@@ -92,10 +92,7 @@ void APMGameModeBase::Tick(float DeltaSeconds)
 						{
 							RestartPlayer(&PlayerController);
 
-							if (IsValid(PlayerController.GetSimulatedPawn()))
-							{
-								PlayerController.GetPlayerState<APMPlayerState>()->SetStatus(EPlayerMatchStatus::Alive);
-							}
+							PlayerController.GetPlayerState<APMPlayerState>()->SetStatus(EPlayerMatchStatus::Alive);
 						}
 					}
 				);
@@ -232,50 +229,51 @@ void APMGameModeBase::HandleStartingNewPlayer_Implementation(APlayerController* 
 
 void APMGameModeBase::RestartPlayerAtPlayerStart(AController* NewPlayer, AActor* StartSpot)
 {
-	if (NewPlayer == nullptr || NewPlayer->IsPendingKillPending())
-	{
-		return;
-	}
-
-	APMPlayerController* RecastNewPlayer = Cast<APMPlayerController>(NewPlayer);
-	check(RecastNewPlayer);
-
-	if (!StartSpot)
-	{
-		UE_LOG(LogGameMode, Warning, TEXT("RestartPlayerAtPlayerStart: Player start not found"));
-		return;
-	}
-
-	FRotator SpawnRotation = StartSpot->GetActorRotation();
-
-	UE_LOG(LogGameMode, Verbose, TEXT("RestartPlayerAtPlayerStart %s"), (RecastNewPlayer && RecastNewPlayer->PlayerState) ? *RecastNewPlayer->PlayerState->GetPlayerName() : TEXT("Unknown"));
-
-	if (MustSpectate(Cast<APlayerController>(NewPlayer)))
-	{
-		UE_LOG(LogGameMode, Verbose, TEXT("RestartPlayerAtPlayerStart: Tried to restart a spectator-only player!"));
-		return;
-	}
-
-	if (RecastNewPlayer->GetSimulatedPawn() != nullptr)
-	{
-		RecastNewPlayer->GetSimulatedPawn()->Destroy();
-		RecastNewPlayer->SetSimulatedPawn(nullptr);
-	}
-
-	if (GetDefaultPawnClassForController(RecastNewPlayer) != nullptr)
-	{
-		// Try to create a pawn to use of the default class for this player
-		RecastNewPlayer->SetSimulatedPawn(SpawnDefaultPawnFor(RecastNewPlayer, StartSpot));
-	}
-
-	if (RecastNewPlayer->GetSimulatedPawn() == nullptr)
-	{
-		RecastNewPlayer->FailedToSpawnPawn();
-	}
-	else
-	{
-		InitStartSpot(StartSpot, RecastNewPlayer);
-	}
+	Super::RestartPlayerAtPlayerStart(NewPlayer, StartSpot);
+// 	if (NewPlayer == nullptr || NewPlayer->IsPendingKillPending())
+// 	{
+// 		return;
+// 	}
+// 
+// 	APMPlayerController* RecastNewPlayer = Cast<APMPlayerController>(NewPlayer);
+// 	check(RecastNewPlayer);
+// 
+// 	if (!StartSpot)
+// 	{
+// 		UE_LOG(LogGameMode, Warning, TEXT("RestartPlayerAtPlayerStart: Player start not found"));
+// 		return;
+// 	}
+// 
+// 	FRotator SpawnRotation = StartSpot->GetActorRotation();
+// 
+// 	UE_LOG(LogGameMode, Verbose, TEXT("RestartPlayerAtPlayerStart %s"), (RecastNewPlayer && RecastNewPlayer->PlayerState) ? *RecastNewPlayer->PlayerState->GetPlayerName() : TEXT("Unknown"));
+// 
+// 	if (MustSpectate(Cast<APlayerController>(NewPlayer)))
+// 	{
+// 		UE_LOG(LogGameMode, Verbose, TEXT("RestartPlayerAtPlayerStart: Tried to restart a spectator-only player!"));
+// 		return;
+// 	}
+// 
+// 	if (RecastNewPlayer->GetSimulatedPawn() != nullptr)
+// 	{
+// 		RecastNewPlayer->GetSimulatedPawn()->Destroy();
+// 		RecastNewPlayer->SetSimulatedPawn(nullptr);
+// 	}
+// 
+// 	if (GetDefaultPawnClassForController(RecastNewPlayer) != nullptr)
+// 	{
+// 		// Try to create a pawn to use of the default class for this player
+// 		RecastNewPlayer->SetSimulatedPawn(SpawnDefaultPawnFor(RecastNewPlayer, StartSpot));
+// 	}
+// 
+// 	if (RecastNewPlayer->GetSimulatedPawn() == nullptr)
+// 	{
+// 		RecastNewPlayer->FailedToSpawnPawn();
+// 	}
+// 	else
+// 	{
+// 		InitStartSpot(StartSpot, RecastNewPlayer);
+// 	}
 }
 
 

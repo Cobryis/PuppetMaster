@@ -39,6 +39,10 @@ public:
 	void SetSimulatedPawn(APawn* InPawn);
 	APawn* GetSimulatedPawn() const;
 
+	void SetPawn(APawn* InPawn);
+
+	APMCharacter* GetControlledPawn() const;
+
 	UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 
 protected:

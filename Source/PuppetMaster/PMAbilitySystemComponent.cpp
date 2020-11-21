@@ -100,6 +100,8 @@ FHitResult AGameplayAbilityTargetActor_Cursor::PerformTrace(AActor* InSourceActo
 		// 			HitResult.Location = HitResult.lo;
 		// 		}
 
+		bHasValidTarget = false;
+
 		if (RequiredGameplayTags.IsEmpty())
 		{
 			bHasValidTarget = HitResult.bBlockingHit;

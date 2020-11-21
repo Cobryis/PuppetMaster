@@ -129,7 +129,7 @@ void APMCharacter::Tick(float DeltaSeconds)
 
 void APMCharacter::MoveTo(const FVector& Location)
 {
-	check(HasAuthority());
+	check(HasAuthority() || IsLocallyControlled());
 	check(GetController());
 	check(IsAlive());
 

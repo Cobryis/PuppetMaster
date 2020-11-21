@@ -19,7 +19,7 @@ void APMPlayerController::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
 
-	StateName = NAME_Inactive;
+	// StateName = NAME_Inactive;
 
 	if (HasAuthority())
 	{
@@ -67,6 +67,22 @@ APawn* APMPlayerController::GetSimulatedPawn() const
 	return SimulatedPawn;
 }
 
+void APMPlayerController::SetPawn(APawn* InPawn)
+{
+	Super::SetPawn(InPawn);
+
+	if (IsValid(AbilitySystemActor))
+	{
+		AbilitySystemActor->GetAbilitySystemComponent()->SetAvatarActor(InPawn);
+		AbilitySystemActor->ForceNetUpdate();
+	}
+}
+
+APMCharacter* APMPlayerController::GetControlledPawn() const
+{
+	return GetPawn<APMCharacter>();
+}
+
 UAbilitySystemComponent* APMPlayerController::GetAbilitySystemComponent() const
 {
 	return AbilitySystemActor ? AbilitySystemActor->GetAbilitySystemComponent() : nullptr;
@@ -81,10 +97,10 @@ void APMPlayerController::OnRep_AbilitySystemActor()
 {
 	if (IsValid(AbilitySystemActor))
 	{
-		if (IsValid(SimulatedPawn))
-		{
-			AbilitySystemActor->GetAbilitySystemComponent()->SetAvatarActor(SimulatedPawn);
-		}
+// 		if (IsValid(SimulatedPawn))
+// 		{
+// 			AbilitySystemActor->GetAbilitySystemComponent()->SetAvatarActor(SimulatedPawn);
+// 		}
 
 		AbilitySystemActor->SetupInputComponent(InputComponent);
 	}
@@ -115,22 +131,26 @@ void APMPlayerController::SetupInputComponent()
 
 void APMPlayerController::SetNewMoveDestination(const FVector& DestLocation)
 {
-	check(IsValid(SimulatedPawn));
+	check(IsValid(GetControlledPawn()));
 
 	if (HasAuthority())
 	{
-		SimulatedPawn->MoveTo(DestLocation);
+		GetControlledPawn()->MoveTo(DestLocation);
 		
 	}
 	else
 	{
+		if (IsLocalController() && GetControlledPawn() == GetPawn())
+		{
+			GetControlledPawn()->MoveTo(DestLocation);
+		}
 		ServerSetNewMoveDestination(DestLocation);
 	}
 }
 
 void APMPlayerController::ServerSetNewMoveDestination_Implementation(const FVector& DestLocation)
 {
-	if (!SimulatedPawn->IsAlive())
+	if (!GetControlledPawn()->IsAlive())
 	{
 		UE_LOG(LogPMPlayerController, Error, TEXT("Attempted to move dead pawn"));
 		return;
@@ -141,7 +161,7 @@ void APMPlayerController::ServerSetNewMoveDestination_Implementation(const FVect
 
 void APMPlayerController::SetFollowTarget(APMCharacter* Target)
 {
-	check(IsValid(SimulatedPawn) && SimulatedPawn->IsAlive());
+	check(IsValid(GetControlledPawn()) && GetControlledPawn()->IsAlive());
 
 	// #todo: we may want to move to a target regardless of its health
 	if (!IsValid(Target) || !Target->IsAlive())
@@ -151,7 +171,7 @@ void APMPlayerController::SetFollowTarget(APMCharacter* Target)
 
 	if (HasAuthority() && IsValid(Target))
 	{
-		SimulatedPawn->MoveToActorAndPerformAction(*Target);
+		GetControlledPawn()->MoveToActorAndPerformAction(*Target);
 	}
 	else
 	{
@@ -161,7 +181,7 @@ void APMPlayerController::SetFollowTarget(APMCharacter* Target)
 
 void APMPlayerController::ServerSetFollowTarget_Implementation(APMCharacter* Target)
 {
-	if (!SimulatedPawn->IsAlive())
+	if (!GetControlledPawn()->IsAlive())
 	{
 		UE_LOG(LogPMPlayerController, Error, TEXT("Attempted to move dead pawn"));
 		return;
@@ -172,9 +192,9 @@ void APMPlayerController::ServerSetFollowTarget_Implementation(APMCharacter* Tar
 
 void APMPlayerController::InputAction_SelectPressed()
 {
-	if (IsValid(SimulatedPawn))
+	if (IsValid(GetControlledPawn()))
 	{
-		if (!SimulatedPawn->IsAlive())
+		if (!GetControlledPawn()->IsAlive())
 		{
 			UE_LOG(LogPMPlayerController, Error, TEXT("Attempted to move dead pawn"));
 			return;
@@ -189,7 +209,7 @@ void APMPlayerController::InputAction_SelectPressed()
 		if (Hit.bBlockingHit)
 		{
 			APMCharacter* PMCharacter = Cast<APMCharacter>(Hit.GetActor());
-			if (IsValid(PMCharacter) && (PMCharacter != SimulatedPawn) && PMCharacter->IsAlive())
+			if (IsValid(PMCharacter) && (PMCharacter != GetControlledPawn()) && PMCharacter->IsAlive())
 			{
 				// SetFollowTarget(static_cast<APMCharacter*>(Hit.GetActor()));
 			}

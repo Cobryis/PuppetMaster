@@ -24,36 +24,6 @@ void UPMAbilitySystemComponent::InitAbilityActorInfo(AActor* InOwnerActor, AActo
 }
 
 
-AAbilitySystemActor::AAbilitySystemActor()
-{
-	PrimaryActorTick.bCanEverTick = false;
-
-	SetReplicates(true);
-	SetReplicateMovement(false);
-
-	AbilitySystemComponent = CreateDefaultSubobject<UPMAbilitySystemComponent>(TEXT("AbilitySystem"));
-}
-
-void AAbilitySystemActor::PostInitializeComponents()
-{
-	Super::PostInitializeComponents();
-
-	AbilitySystemComponent->InitStats(UCharacterAttributeSet::StaticClass(), nullptr);
-}
-
-bool AAbilitySystemActor::IsNetRelevantFor(const AActor* RealViewer, const AActor* ViewTarget, const FVector& SrcLocation) const
-{
-	return true;
-}
-
-void AAbilitySystemActor::SetupInputComponent(UInputComponent* Input)
-{
-	FGameplayAbilityInputBinds AbilityBinds(TEXT("ConfirmAbility"), TEXT("CancelAbility"), TEXT("EAbilityBindings"));
-	AbilitySystemComponent->BindAbilityActivationToInputComponent(Input, AbilityBinds);
-}
-
-
-
 FHitResult AGameplayAbilityTargetActor_Cursor::PerformTrace(AActor* InSourceActor)
 {
 	FHitResult HitResult;
@@ -82,23 +52,6 @@ FHitResult AGameplayAbilityTargetActor_Cursor::PerformTrace(AActor* InSourceActo
 		const bool bUseTraceResult = HitResult.bBlockingHit && (FVector::DistSquared(TraceStart, HitResult.Location) <= (FMath::Square(MaxRange)));
 
 		const FVector AdjustedEnd = (bUseTraceResult) ? HitResult.Location : ViewEnd;
-
-		// 		FVector AdjustedAimDir = (AdjustedEnd - TraceStart).GetSafeNormal();
-		// 		if (AdjustedAimDir.IsZero())
-		// 		{
-		// 			AdjustedAimDir = ViewDir;
-		// 		}
-		// 
-		// 		FVector TraceEnd = TraceStart + (AdjustedAimDir * MaxRange);
-		// 
-		// 		// ------------------------------------------------------
-		// 
-		// 		LineTraceWithFilter(HitResult, InSourceActor->GetWorld(), Filter, TraceStart, TraceEnd, TraceProfile.Name, Params);
-				//Default to end of trace line if we don't hit anything.
-		// 		if (!HitResult.bBlockingHit)
-		// 		{
-		// 			HitResult.Location = HitResult.lo;
-		// 		}
 
 		bHasValidTarget = false;
 

@@ -53,9 +53,6 @@ protected:
 	UFUNCTION()
 	void OnRep_SimulatedPawn();
 
-	UPROPERTY(Transient, ReplicatedUsing = OnRep_AbilitySystemActor)
-	class AAbilitySystemActor* AbilitySystemActor = nullptr;
-
 	UFUNCTION()
 	void OnRep_AbilitySystemActor();
 

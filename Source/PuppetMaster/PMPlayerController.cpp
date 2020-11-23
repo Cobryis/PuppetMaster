@@ -20,13 +20,6 @@ void APMPlayerController::PostInitializeComponents()
 	Super::PostInitializeComponents();
 
 	// StateName = NAME_Inactive;
-
-	if (HasAuthority())
-	{
-		FActorSpawnParameters SpawnParams;
-		SpawnParams.Owner = this;
-		AbilitySystemActor = GetWorld()->SpawnActor<AAbilitySystemActor>(SpawnParams);
-	}
 }
 
 void APMPlayerController::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
@@ -85,7 +78,7 @@ APMCharacter* APMPlayerController::GetControlledPawn() const
 
 UAbilitySystemComponent* APMPlayerController::GetAbilitySystemComponent() const
 {
-	return AbilitySystemActor ? AbilitySystemActor->GetAbilitySystemComponent() : nullptr;
+	return UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetControlledPawn());
 }
 
 void APMPlayerController::OnRep_SimulatedPawn()

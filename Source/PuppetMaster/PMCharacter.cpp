@@ -2,7 +2,8 @@
 
 #include "PMCharacter.h"
 
-#include "PMPlayerController.h" // for playerstate
+#include "PMAbilitySystemComponent.h"
+#include "PMAttributeSets.h"
 
 #include "AbilitySystemGlobals.h"
 #include "DrawDebugHelpers.h"
@@ -54,6 +55,8 @@ APMCharacter::APMCharacter(const FObjectInitializer& OI)
 	CameraComponent->SetupAttachment(CameraBoomComponent, USpringArmComponent::SocketName);
 	CameraComponent->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
 
+	AbilitySystemComponent = CreateDefaultSubobject<UPMAbilitySystemComponent>(TEXT("AbilitySystem"));
+
 	// Activate ticking in order to update the cursor every frame.
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.bStartWithTickEnabled = true;
@@ -89,6 +92,14 @@ void APMCharacter::PreReplication(IRepChangedPropertyTracker& ChangedPropertyTra
 // 	}
 }
 
+void APMCharacter::PostInitializeComponents()
+{
+	Super::PostInitializeComponents();
+	AbilitySystemComponent->InitStats(UCharacterAttributeSet::StaticClass(), nullptr);
+	Attributes = AbilitySystemComponent->GetSetChecked<UCharacterAttributeSet>();
+	const_cast<UCharacterAttributeSet*>(Attributes)->OnHealthChanged.AddUObject(this, &APMCharacter::OnHealthChanged);
+}
+
 void APMCharacter::BeginPlay()
 {
 	Super::BeginPlay();
@@ -104,6 +115,12 @@ void APMCharacter::PossessedBy(AController* NewController)
 	PathFollowingComponent = NewController->FindComponentByClass<UPathFollowingComponent>();
 
 	// playerstate isn't set yet at this point
+}
+
+void APMCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
+{
+	FGameplayAbilityInputBinds AbilityBinds(TEXT("ConfirmAbility"), TEXT("CancelAbility"), TEXT("EAbilityBindings"));
+	AbilitySystemComponent->BindAbilityActivationToInputComponent(PlayerInputComponent, AbilityBinds);
 }
 
 void APMCharacter::Tick(float DeltaSeconds)
@@ -145,73 +162,86 @@ void APMCharacter::MoveTo(const FVector& Location)
 
 void APMCharacter::MoveToActorAndPerformAction(APMCharacter& Target)
 {
-	check(HasAuthority());
-	check(GetController());
-	check(IsAlive());
-
-	check(&Target != this);
-	check(PathFollowingComponent);
-
-	CurrentTarget = &Target;
-
-	PathFollowingComponent->AbortMove(*GetController(), FPathFollowingResultFlags::NewRequest, FAIRequestID::CurrentRequest, EPathFollowingVelocityMode::Keep);
-	FollowHandle = PathFollowingComponent->OnRequestFinished.AddLambda
-	(
-		[this](FAIRequestID RequestID, const FPathFollowingResult& Result)
-		{
-			if (Result.Code == EPathFollowingResult::Success)
-			{
-				APMCharacter* Victim = Cast<APMCharacter>(CurrentTarget.Get());
-				if (IsValid(Victim) && !Victim->IsIncapacitated())
-				{
-					Victim->TryToKill(*this, 1);
-				}
-				else if (IsValid(Victim) && Victim->IsIncapacitated() && Victim->IsAlive())
-				{
-					Victim->Revived();
-				}
-			}
-
-			CurrentTarget.Reset();
-			FollowHandle.Reset();
-		}
-	);
-	UAIBlueprintHelperLibrary::SimpleMoveToActor(GetController(), &Target);
+// 	check(HasAuthority());
+// 	check(GetController());
+// 	check(IsAlive());
+// 
+// 	check(&Target != this);
+// 	check(PathFollowingComponent);
+// 
+// 	CurrentTarget = &Target;
+// 
+// 	PathFollowingComponent->AbortMove(*GetController(), FPathFollowingResultFlags::NewRequest, FAIRequestID::CurrentRequest, EPathFollowingVelocityMode::Keep);
+// 	FollowHandle = PathFollowingComponent->OnRequestFinished.AddLambda
+// 	(
+// 		[this](FAIRequestID RequestID, const FPathFollowingResult& Result)
+// 		{
+// 			if (Result.Code == EPathFollowingResult::Success)
+// 			{
+// 				APMCharacter* Victim = Cast<APMCharacter>(CurrentTarget.Get());
+// 				if (IsValid(Victim) && !Victim->IsIncapacitated())
+// 				{
+// 					Victim->TryToKill(*this, 1);
+// 				}
+// 				else if (IsValid(Victim) && Victim->IsIncapacitated() && Victim->IsAlive())
+// 				{
+// 					Victim->Revived();
+// 				}
+// 			}
+// 
+// 			CurrentTarget.Reset();
+// 			FollowHandle.Reset();
+// 		}
+// 	);
+// 	UAIBlueprintHelperLibrary::SimpleMoveToActor(GetController(), &Target);
 }
 
-bool APMCharacter::TryToKill(const APMCharacter& Perpetrator, int32 HitPoints)
+UAbilitySystemComponent* APMCharacter::GetAbilitySystemComponent() const
 {
-	check(HasAuthority());
-	check(GetController());
-	check(IsAlive());
+	return AbilitySystemComponent;
+}
 
-	AdjustHealth(Perpetrator, -HitPoints);
+// bool APMCharacter::TryToKill(const APMCharacter& Perpetrator, int32 HitPoints)
+// {
+// 	check(HasAuthority());
+// 	check(GetController());
+// 	check(IsAlive());
+// 
+// 	AdjustHealth(Perpetrator, -HitPoints);
+// 
+// 	if (IsAlive())
+// 	{
+// 		PassOut();
+// 		return false;
+// 	}
+// 	else
+// 	{
+// 		Die(Perpetrator);
+// 		return true;
+// 	}
+// }
+// 
+// void APMCharacter::AdjustHealth(const AActor& DamageCauser, int32 AdjustAmount)
+// {
+// 	check(HasAuthority());
+// 	check(GetController());
+// 	check(IsAlive());
+// 
+// 	Health = FMath::Clamp(Health + AdjustAmount, 0, HealthMax);
+// }
 
-	if (IsAlive())
+void APMCharacter::OnHealthChanged(float NewHealth, AActor* EventInstigator)
+{
+	if (NewHealth == 0.f)
 	{
-		PassOut();
-		return false;
+		check(EventInstigator);
+		APMCharacter* Perpetrator = CastChecked<APMCharacter>(EventInstigator);
+		Die(*Perpetrator);
 	}
 	else
 	{
-		Die(Perpetrator);
-		return true;
+		PassOut();
 	}
-}
-
-void APMCharacter::AdjustHealth(const AActor& DamageCauser, int32 AdjustAmount)
-{
-	check(HasAuthority());
-	check(GetController());
-	check(IsAlive());
-
-	Health = FMath::Clamp(Health + AdjustAmount, 0, HealthMax);
-}
-
-// #fixme: this only works on authority and auto right now.. 
-UAbilitySystemComponent* APMCharacter::GetAbilitySystemComponent() const
-{
-	return GetController() ? UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetController()) : nullptr;
 }
 
 void APMCharacter::PassOut()

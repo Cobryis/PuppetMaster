@@ -40,8 +40,8 @@ public:
 	void MoveTo(const FVector& Location);
 	void MoveToActorAndPerformAction(APMCharacter& Victim);
 
-	bool TryToKill(const APMCharacter& Perpetrator, int32 HitPoints);
-	void AdjustHealth(const AActor& DamageCauser, int32 AdjustAmount);
+	// bool TryToKill(const APMCharacter& Perpetrator, int32 HitPoints);
+	// void AdjustHealth(const AActor& DamageCauser, int32 AdjustAmount);
 
 	UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 
@@ -52,11 +52,14 @@ protected:
 	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	void PreReplication(IRepChangedPropertyTracker& ChangedPropertyTracker) override;
 
+	void PostInitializeComponents() override;
 	void BeginPlay() override;
 	void PossessedBy(AController* NewController) override;
+	void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 	void Tick(float DeltaSeconds) override;
 
+	void OnHealthChanged(float NewHealth, AActor* EventInstigator);
 	void PassOut();
 	void Die(const APMCharacter& Perpetrator);
 
@@ -92,8 +95,14 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class USpringArmComponent* CameraBoomComponent;
 
+	UPROPERTY()
+	class UPMAbilitySystemComponent* AbilitySystemComponent;
+
 	UPROPERTY(Transient)
 	class UPathFollowingComponent* PathFollowingComponent = nullptr;
+
+	UPROPERTY(Transient)
+	const class UCharacterAttributeSet* Attributes = nullptr;
 
 	TWeakObjectPtr<APMCharacter> CurrentTarget;
 	FDelegateHandle FollowHandle;

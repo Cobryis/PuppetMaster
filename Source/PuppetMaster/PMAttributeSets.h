@@ -15,6 +15,7 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attributes")
 	FGameplayAttributeData Health = FGameplayAttributeData(1.f);
+	GAMEPLAYATTRIBUTE_PROPERTY_GETTER(UCharacterAttributeSet, Health)
 	GAMEPLAYATTRIBUTE_VALUE_GETTER(Health)
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attributes")

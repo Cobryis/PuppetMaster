@@ -6,19 +6,17 @@
 #include "PMAttributeSets.h"
 
 #include "AbilitySystemGlobals.h"
+
 #include "DrawDebugHelpers.h"
-#include "Camera/CameraComponent.h"
-#include "Components/DecalComponent.h"
-#include "Components/CapsuleComponent.h"
-#include "Engine/World.h"
 #include "Blueprint/AIBlueprintHelperLibrary.h"
+#include "Camera/CameraComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Materials/Material.h"
 #include "Navigation/PathFollowingComponent.h"
 #include "Net/UnrealNetwork.h"
-#include "UObject/ConstructorHelpers.h"
 
 APMCharacter::APMCharacter(const FObjectInitializer& OI)
 	: Super(OI)
@@ -67,8 +65,6 @@ void APMCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLife
 	ACharacter::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	DOREPLIFETIME(APMCharacter, ReplicatedPath);
-	DOREPLIFETIME(APMCharacter, Health);
-	DOREPLIFETIME(APMCharacter, bIncapacitated);
 }
 
 void APMCharacter::PreReplication(IRepChangedPropertyTracker& ChangedPropertyTracker)
@@ -95,16 +91,17 @@ void APMCharacter::PreReplication(IRepChangedPropertyTracker& ChangedPropertyTra
 void APMCharacter::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
-	AbilitySystemComponent->InitStats(UCharacterAttributeSet::StaticClass(), nullptr);
 	Attributes = AbilitySystemComponent->GetSetChecked<UCharacterAttributeSet>();
-	const_cast<UCharacterAttributeSet*>(Attributes)->OnHealthChanged.AddUObject(this, &APMCharacter::OnHealthChanged);
+	for (auto TagIt = DefaultGameplayTags.CreateConstIterator(); TagIt; ++TagIt)
+	{
+		AbilitySystemComponent->SetLooseGameplayTagCount(*TagIt, 1);
+	}
 }
 
 void APMCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	Health = HealthMax;
 }
 
 void APMCharacter::PossessedBy(AController* NewController)
@@ -114,13 +111,19 @@ void APMCharacter::PossessedBy(AController* NewController)
 
 	PathFollowingComponent = NewController->FindComponentByClass<UPathFollowingComponent>();
 
-	// playerstate isn't set yet at this point
+	AbilitySystemComponent->RefreshAbilityActorInfo();
+}
+
+void APMCharacter::PawnClientRestart()
+{
+	Super::PawnClientRestart();
+
+	AbilitySystemComponent->RefreshAbilityActorInfo();
 }
 
 void APMCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent)
 {
-	FGameplayAbilityInputBinds AbilityBinds(TEXT("ConfirmAbility"), TEXT("CancelAbility"), TEXT("EAbilityBindings"));
-	AbilitySystemComponent->BindAbilityActivationToInputComponent(PlayerInputComponent, AbilityBinds);
+	AbilitySystemComponent->SetupPlayerInputComponent(*InputComponent);
 }
 
 void APMCharacter::Tick(float DeltaSeconds)
@@ -230,78 +233,58 @@ UAbilitySystemComponent* APMCharacter::GetAbilitySystemComponent() const
 // 	Health = FMath::Clamp(Health + AdjustAmount, 0, HealthMax);
 // }
 
-void APMCharacter::OnHealthChanged(float NewHealth, AActor* EventInstigator)
-{
-	if (NewHealth == 0.f)
-	{
-		check(EventInstigator);
-		APMCharacter* Perpetrator = CastChecked<APMCharacter>(EventInstigator);
-		Die(*Perpetrator);
-	}
-	else
-	{
-		PassOut();
-	}
-}
-
-void APMCharacter::PassOut()
-{
-	check(HasAuthority());
-	check(GetController());
-	check(IsAlive());
-
-	Incapacitated();
-}
 
 void APMCharacter::Die(const APMCharacter& Perpetrator)
 {
 	check(GetController()); // we shouldn't be able to die if we're already dead
 
-	Incapacitated();
-
 	GetController()->Destroy();
 }
 
-void APMCharacter::Incapacitated()
+// void APMCharacter::Incapacitated()
+// {
+// 	bIncapacitated = true;
+// 
+// 	OnIncapacitated.Broadcast();
+// 
+// 	GetCharacterMovement()->StopActiveMovement();
+// 	GetMovementComponent()->Deactivate();
+// 
+// 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+// 	GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+// 
+// }
+// 
+// void APMCharacter::Revived()
+// {
+// 	bIncapacitated = false;
+// 
+// 	GetMovementComponent()->Activate();
+// 
+// 	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+// 	GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+// 
+// 	OnRevived.Broadcast();
+// }
+
+
+bool APMCharacter::HasMatchingGameplayTag(FGameplayTag TagToCheck) const
 {
-	bIncapacitated = true;
-
-	OnIncapacitated.Broadcast();
-
-	GetCharacterMovement()->StopActiveMovement();
-	GetMovementComponent()->Deactivate();
-
-	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-
+	return GetAbilitySystemComponent()->HasMatchingGameplayTag(TagToCheck);
 }
 
-void APMCharacter::Revived()
+bool APMCharacter::HasAllMatchingGameplayTags(const FGameplayTagContainer& TagContainer) const
 {
-	bIncapacitated = false;
-
-	GetMovementComponent()->Activate();
-
-	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-	GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-
-	OnRevived.Broadcast();
+	return GetAbilitySystemComponent()->HasAllMatchingGameplayTags(TagContainer);
 }
 
-void APMCharacter::OnRep_Incapacitated()
+bool APMCharacter::HasAnyMatchingGameplayTags(const FGameplayTagContainer& TagContainer) const
 {
-	if (bIncapacitated)
-	{
-		Incapacitated();
-	}
-	else
-	{
-		Revived();
-	}
+	return GetAbilitySystemComponent()->HasAnyMatchingGameplayTags(TagContainer);
 }
 
 void APMCharacter::GetOwnedGameplayTags(FGameplayTagContainer& TagContainer) const
 {
-	TagContainer = GameplayTags;
+	GetAbilitySystemComponent()->GetOwnedGameplayTags(TagContainer);
 }
 

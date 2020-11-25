@@ -11,6 +11,8 @@
 
 #include "PMCharacter.generated.h"
 
+class UCharacterAttributeSet;
+
 // #todo: this is for art - what state is this body in
 UENUM(BlueprintType)
 enum class EBodyState : uint8
@@ -34,8 +36,8 @@ class APMCharacter : public ACharacter
 
 public:
 
-	bool IsAlive() const { return Health > 0; }
-	bool IsIncapacitated() const { return bIncapacitated; }
+ 	bool IsAlive() const { return IsValid(GetController()); }
+// 	bool IsIncapacitated() const { return bIncapacitated; }
 
 	void MoveTo(const FVector& Location);
 	void MoveToActorAndPerformAction(APMCharacter& Victim);
@@ -44,6 +46,9 @@ public:
 	// void AdjustHealth(const AActor& DamageCauser, int32 AdjustAmount);
 
 	UAbilitySystemComponent* GetAbilitySystemComponent() const override;
+
+	UFUNCTION(BlueprintPure)
+	UCharacterAttributeSet* GetCharacterAttributes() const { return const_cast<UCharacterAttributeSet*>(Attributes); }
 
 protected:
 
@@ -55,36 +60,14 @@ protected:
 	void PostInitializeComponents() override;
 	void BeginPlay() override;
 	void PossessedBy(AController* NewController) override;
+	void PawnClientRestart() override;
 	void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 	void Tick(float DeltaSeconds) override;
 
-	void OnHealthChanged(float NewHealth, AActor* EventInstigator);
-	void PassOut();
 	void Die(const APMCharacter& Perpetrator);
 
-	void Incapacitated();
-	void Revived();
-
-	UPROPERTY(BlueprintAssignable)
-	FIncapacitated OnIncapacitated;
-
-	UPROPERTY(BlueprintAssignable)
-	FRevived OnRevived;
-
 private:
-
-	UPROPERTY(ReplicatedUsing=OnRep_Incapacitated)
-	bool bIncapacitated = false;
-
-	UFUNCTION()
-	void OnRep_Incapacitated();
-
-	UPROPERTY(Replicated, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	int32 Health = 1;
-
-	// #todo
-	int32 HealthMax = 2;
 
 	UPROPERTY(Replicated, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	TArray<FVector_NetQuantize> ReplicatedPath;
@@ -102,13 +85,19 @@ private:
 	class UPathFollowingComponent* PathFollowingComponent = nullptr;
 
 	UPROPERTY(Transient)
-	const class UCharacterAttributeSet* Attributes = nullptr;
+	const UCharacterAttributeSet* Attributes = nullptr;
 
 	TWeakObjectPtr<APMCharacter> CurrentTarget;
 	FDelegateHandle FollowHandle;
 
 	UPROPERTY(EditAnywhere)
-	FGameplayTagContainer GameplayTags;
+	FGameplayTagContainer DefaultGameplayTags;
+
+	bool HasMatchingGameplayTag(FGameplayTag TagToCheck) const override;
+
+	bool HasAllMatchingGameplayTags(const FGameplayTagContainer& TagContainer) const override;
+
+	bool HasAnyMatchingGameplayTags(const FGameplayTagContainer& TagContainer) const override;
 
 	void GetOwnedGameplayTags(FGameplayTagContainer& TagContainer) const override;
 

@@ -2,6 +2,8 @@
 
 #include "PMAbilitySystemComponent.h"
 
+#include "PMAttributeSets.h"
+
 #include "GameplayTagAssetInterface.h"
 
 #include "DrawDebugHelpers.h"
@@ -14,15 +16,17 @@ UPMAbilitySystemComponent::UPMAbilitySystemComponent(const FObjectInitializer& O
 
 void UPMAbilitySystemComponent::InitAbilityActorInfo(AActor* InOwnerActor, AActor* InAvatarActor)
 {
-	// #hack: so the avatar actor isn't set until its the one we want (the character)
-	if (InAvatarActor == InOwnerActor)
-	{
-		InAvatarActor = nullptr;
-	}
-
 	Super::InitAbilityActorInfo(InOwnerActor, InAvatarActor);
+
+	InitStats(UCharacterAttributeSet::StaticClass(), nullptr);
 }
 
+
+void UPMAbilitySystemComponent::SetupPlayerInputComponent(UInputComponent& InputComponent)
+{
+	FGameplayAbilityInputBinds AbilityBinds(TEXT("ConfirmAbility"), TEXT("CancelAbility"), TEXT("EAbilityBindings"));
+	BindAbilityActivationToInputComponent(&InputComponent, AbilityBinds);
+}
 
 FHitResult AGameplayAbilityTargetActor_Cursor::PerformTrace(AActor* InSourceActor)
 {

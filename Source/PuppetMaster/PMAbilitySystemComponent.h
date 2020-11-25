@@ -8,6 +8,16 @@
 
 #include "PMAbilitySystemComponent.generated.h"
 
+UENUM()
+enum class EAbilityBindings
+{
+	Ability1,
+	Ability2,
+	Ability3,
+	Ability4,
+	Ability5
+};
+
 UCLASS()
 class UPMAbilitySystemComponent : public UAbilitySystemComponent
 {
@@ -18,6 +28,8 @@ public:
 	UPMAbilitySystemComponent(const FObjectInitializer& OI);
 
 	void InitAbilityActorInfo(AActor* InOwnerActor, AActor* InAvatarActor) override;
+
+	void SetupPlayerInputComponent(UInputComponent& InputComponent);
 
 };
 

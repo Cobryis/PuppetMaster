@@ -13,16 +13,6 @@
 class APMCharacter;
 class UAbilitySystemComponent;
 
-UENUM()
-enum class EAbilityBindings
-{
-	Ability1,
-	Ability2,
-	Ability3,
-	Ability4,
-	Ability5
-};
-
 UCLASS()
 class APMPlayerController : public APlayerController
 	, public IAbilitySystemInterface
@@ -36,9 +26,6 @@ public:
 	void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	void BeginPlay() override;
 
-	void SetSimulatedPawn(APawn* InPawn);
-	APawn* GetSimulatedPawn() const;
-
 	void SetPawn(APawn* InPawn);
 
 	APMCharacter* GetControlledPawn() const;
@@ -46,15 +33,6 @@ public:
 	UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 
 protected:
-
-	UPROPERTY(Transient, ReplicatedUsing=OnRep_SimulatedPawn)
-	APMCharacter* SimulatedPawn = nullptr;
-
-	UFUNCTION()
-	void OnRep_SimulatedPawn();
-
-	UFUNCTION()
-	void OnRep_AbilitySystemActor();
 
 	// Begin PlayerController interface
 	void ChangeState(FName NewState) override;

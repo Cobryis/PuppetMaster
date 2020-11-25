@@ -5,6 +5,8 @@
 #include "PMAbilitySystemComponent.h"
 #include "PMCharacter.h"
 
+#include "AbilitySystemGlobals.h"
+
 #include "Net/UnrealNetwork.h"
 
 DECLARE_LOG_CATEGORY_CLASS(LogPMPlayerController, Warning, All)
@@ -27,9 +29,6 @@ void APMPlayerController::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& 
 	AController::GetLifetimeReplicatedProps(OutLifetimeProps);
 
 	// ResetReplicatedLifetimeProperty(StaticClass(), AController::StaticClass(), TEXT("Pawn"), COND_Never, OutLifetimeProps);
-
-	DOREPLIFETIME(APMPlayerController, SimulatedPawn);
-	DOREPLIFETIME_CONDITION(APMPlayerController, AbilitySystemActor, COND_InitialOnly);
 }
 
 void APMPlayerController::BeginPlay()
@@ -37,38 +36,9 @@ void APMPlayerController::BeginPlay()
 	Super::BeginPlay();
 }
 
-void APMPlayerController::SetSimulatedPawn(APawn* InPawn)
-{
-	check(!IsValid(InPawn) || InPawn->IsA<APMCharacter>());
-
-	SimulatedPawn = Cast<APMCharacter>(InPawn);
-
-	if (IsValid(AbilitySystemActor))
-	{
-		AbilitySystemActor->GetAbilitySystemComponent()->SetAvatarActor(SimulatedPawn);
-		AbilitySystemActor->ForceNetUpdate();
-	}
-
-	if (SimulatedPawn)
-	{
-		SetViewTarget(SimulatedPawn);
-	}
-}
-
-APawn* APMPlayerController::GetSimulatedPawn() const
-{
-	return SimulatedPawn;
-}
-
 void APMPlayerController::SetPawn(APawn* InPawn)
 {
 	Super::SetPawn(InPawn);
-
-	if (IsValid(AbilitySystemActor))
-	{
-		AbilitySystemActor->GetAbilitySystemComponent()->SetAvatarActor(InPawn);
-		AbilitySystemActor->ForceNetUpdate();
-	}
 }
 
 APMCharacter* APMPlayerController::GetControlledPawn() const
@@ -79,24 +49,6 @@ APMCharacter* APMPlayerController::GetControlledPawn() const
 UAbilitySystemComponent* APMPlayerController::GetAbilitySystemComponent() const
 {
 	return UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(GetControlledPawn());
-}
-
-void APMPlayerController::OnRep_SimulatedPawn()
-{
-	SetSimulatedPawn(SimulatedPawn);
-}
-
-void APMPlayerController::OnRep_AbilitySystemActor()
-{
-	if (IsValid(AbilitySystemActor))
-	{
-// 		if (IsValid(SimulatedPawn))
-// 		{
-// 			AbilitySystemActor->GetAbilitySystemComponent()->SetAvatarActor(SimulatedPawn);
-// 		}
-
-		AbilitySystemActor->SetupInputComponent(InputComponent);
-	}
 }
 
 void APMPlayerController::ChangeState(FName NewState)
@@ -114,12 +66,8 @@ void APMPlayerController::SetupInputComponent()
 	// set up gameplay key bindings
 	Super::SetupInputComponent();
 
-	if (HasAuthority())
-	{
-		AbilitySystemActor->SetupInputComponent(InputComponent);
-	}
-
-	InputComponent->BindAction("SetDestination", IE_Pressed, this, &APMPlayerController::InputAction_SelectPressed);
+	FInputActionBinding& Binding = InputComponent->BindAction("SetDestination", IE_Pressed, this, &APMPlayerController::InputAction_SelectPressed);
+	Binding.bConsumeInput = false; // hack to get confirm ability to work on LMB
 }
 
 void APMPlayerController::SetNewMoveDestination(const FVector& DestLocation)

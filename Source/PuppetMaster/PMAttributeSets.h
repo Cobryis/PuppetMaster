@@ -13,16 +13,16 @@ class UCharacterAttributeSet : public UAttributeSet
 
 public:
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attributes")
+	UPROPERTY(ReplicatedUsing=OnRep_Health, BlueprintReadOnly, Category = "Attributes")
 	FGameplayAttributeData Health = FGameplayAttributeData(1.f);
 	GAMEPLAYATTRIBUTE_PROPERTY_GETTER(UCharacterAttributeSet, Health)
 	GAMEPLAYATTRIBUTE_VALUE_GETTER(Health)
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attributes")
+	UPROPERTY(ReplicatedUsing=OnRep_MaxHealth, BlueprintReadOnly, Category = "Attributes")
 	FGameplayAttributeData MaxHealth = FGameplayAttributeData(2.f);
 	GAMEPLAYATTRIBUTE_VALUE_GETTER(MaxHealth)
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Attributes")
+	UPROPERTY(ReplicatedUsing=OnRep_VisionRadius, BlueprintReadOnly, Category = "Attributes")
 	FGameplayAttributeData VisionRadius = FGameplayAttributeData(500.f);
 
 	DECLARE_EVENT_TwoParams(UCharacterAttributeSet, FOnHealthChanged, float, AActor*)
@@ -69,5 +69,16 @@ private:
 
 	/** Callback for when an FAggregator is created for an attribute in this set. Allows custom setup of FAggregator::EvaluationMetaData */
 	// void OnAttributeAggregatorCreated(const FGameplayAttribute& Attribute, FAggregator* NewAggregator) const override;
+
+	void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty> & OutLifetimeProps) const override;
+
+	UFUNCTION()
+	void OnRep_Health(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_MaxHealth(const FGameplayAttributeData& OldValue);
+
+	UFUNCTION()
+	void OnRep_VisionRadius(const FGameplayAttributeData& OldValue);
 
 };

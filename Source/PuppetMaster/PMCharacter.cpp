@@ -26,8 +26,6 @@ APMCharacter::APMCharacter(const FObjectInitializer& OI)
 
 	GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 
-	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
-
 	// Don't rotate character to camera direction
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
@@ -54,6 +52,7 @@ APMCharacter::APMCharacter(const FObjectInitializer& OI)
 	CameraComponent->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
 
 	AbilitySystemComponent = CreateDefaultSubobject<UPMAbilitySystemComponent>(TEXT("AbilitySystem"));
+	Attributes = CreateDefaultSubobject<UCharacterAttributeSet>(TEXT("Attributes"));
 
 	// Activate ticking in order to update the cursor every frame.
 	PrimaryActorTick.bCanEverTick = true;
@@ -91,7 +90,7 @@ void APMCharacter::PreReplication(IRepChangedPropertyTracker& ChangedPropertyTra
 void APMCharacter::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
-	Attributes = AbilitySystemComponent->GetSetChecked<UCharacterAttributeSet>();
+
 	for (auto TagIt = DefaultGameplayTags.CreateConstIterator(); TagIt; ++TagIt)
 	{
 		AbilitySystemComponent->SetLooseGameplayTagCount(*TagIt, 1);

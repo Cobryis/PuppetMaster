@@ -48,6 +48,7 @@ protected:
 
 	void HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer) override;
 	void RestartPlayerAtPlayerStart(AController* NewPlayer, AActor* StartSpot) override;
+	APawn* SpawnDefaultPawnAtTransform_Implementation(AController* NewPlayer, const FTransform& SpawnTransform) override;
 
 protected:
 

@@ -276,8 +276,20 @@ void APMGameModeBase::RestartPlayerAtPlayerStart(AController* NewPlayer, AActor*
 // 	}
 }
 
-
-
+APawn* APMGameModeBase::SpawnDefaultPawnAtTransform_Implementation(AController* NewPlayer, const FTransform& SpawnTransform)
+{
+	FActorSpawnParameters SpawnInfo;
+	SpawnInfo.Instigator = GetInstigator();
+	SpawnInfo.ObjectFlags |= RF_Transient;	// We never want to save default player pawns into a map
+	SpawnInfo.Owner = NewPlayer->PlayerState ? (AActor*)NewPlayer->PlayerState : NewPlayer;
+	UClass* PawnClass = GetDefaultPawnClassForController(NewPlayer);
+	APawn* ResultPawn = GetWorld()->SpawnActor<APawn>(PawnClass, SpawnTransform, SpawnInfo);
+	if (!ResultPawn)
+	{
+		UE_LOG(LogGameMode, Warning, TEXT("SpawnDefaultPawnAtTransform: Couldn't spawn Pawn of type %s at %s"), *GetNameSafe(PawnClass), *SpawnTransform.ToHumanReadableString());
+	}
+	return ResultPawn;
+}
 
 void APMGameState::SetMatchState(EMatchState State)
 {

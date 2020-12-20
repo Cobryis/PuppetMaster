@@ -2,11 +2,16 @@
 
 #include "PMAbilitySystemComponent.h"
 
+#include "GameplayAbility_PlayerCursor.h"
 #include "PMAttributeSets.h"
 
-#include "GameplayTagAssetInterface.h"
+#define stringify(t) #t
 
-#include "DrawDebugHelpers.h"
+void UPMAbilitySystemComponent::SetupPlayerInputComponent(UInputComponent& InputComponent)
+{
+	FGameplayAbilityInputBinds AbilityBinds(TEXT(""), TEXT(""), stringify(EAbilityBindings), static_cast<int32>(EAbilityBindings::Confirm), static_cast<int32>(EAbilityBindings::Cancel));
+	BindAbilityActivationToInputComponent(&InputComponent, AbilityBinds);
+}
 
 UPMAbilitySystemComponent::UPMAbilitySystemComponent(const FObjectInitializer& OI)
 	: Super(OI)
@@ -14,81 +19,26 @@ UPMAbilitySystemComponent::UPMAbilitySystemComponent(const FObjectInitializer& O
 
 }
 
+void UPMAbilitySystemComponent::BeginPlay()
+{
+	Super::BeginPlay();
+
+	if (GetOwnerRole() == ROLE_Authority)
+	{
+		FGameplayAbilitySpec PlayerCursorSpec{ UGameplayAbility_PlayerCursor::StaticClass(), 1, static_cast<int32>(EAbilityBindings::Select) };
+		GiveAbility(PlayerCursorSpec);
+	}
+}
+
 void UPMAbilitySystemComponent::InitAbilityActorInfo(AActor* InOwnerActor, AActor* InAvatarActor)
 {
 	Super::InitAbilityActorInfo(InOwnerActor, InAvatarActor);
-
-	InitStats(UCharacterAttributeSet::StaticClass(), nullptr);
 }
 
-
-void UPMAbilitySystemComponent::SetupPlayerInputComponent(UInputComponent& InputComponent)
+void UPMAbilitySystemComponent::OnPlayerControllerSet()
 {
-	FGameplayAbilityInputBinds AbilityBinds(TEXT("ConfirmAbility"), TEXT("CancelAbility"), TEXT("EAbilityBindings"));
-	BindAbilityActivationToInputComponent(&InputComponent, AbilityBinds);
-}
-
-FHitResult AGameplayAbilityTargetActor_Cursor::PerformTrace(AActor* InSourceActor)
-{
-	FHitResult HitResult;
-
-	FVector ViewStart;
-	FVector ViewDir;
-	if (OwningAbility->GetCurrentActorInfo()->PlayerController->DeprojectMousePositionToWorld(ViewStart, ViewDir))
+	if (AbilityActorInfo->IsLocallyControlled())
 	{
-		bool bTraceComplex = false;
-		TArray<AActor*> ActorsToIgnore;
-
-		ActorsToIgnore.Add(InSourceActor);
-
-		FCollisionQueryParams Params(SCENE_QUERY_STAT(AGameplayAbilityTargetActor_Cursor), bTraceComplex);
-		// Params.bReturnPhysicalMaterial = true;
-		Params.AddIgnoredActors(ActorsToIgnore);
-
-		FVector TraceStart = ViewStart;
-
-		FVector ViewEnd = ViewStart + (ViewDir * MaxRange);
-
-		ClipCameraRayToAbilityRange(ViewStart, ViewDir, TraceStart, MaxRange, ViewEnd);
-
-		LineTraceWithFilter(HitResult, InSourceActor->GetWorld(), Filter, ViewStart, ViewEnd, TraceProfile.Name, Params);
-
-		const bool bUseTraceResult = HitResult.bBlockingHit && (FVector::DistSquared(TraceStart, HitResult.Location) <= (FMath::Square(MaxRange)));
-
-		const FVector AdjustedEnd = (bUseTraceResult) ? HitResult.Location : ViewEnd;
-
-		bHasValidTarget = false;
-
-		if (RequiredGameplayTags.IsEmpty())
-		{
-			bHasValidTarget = HitResult.bBlockingHit;
-		}
-		else
-		{
-			const TScriptInterface<IGameplayTagAssetInterface> ActorTags = HitResult.bBlockingHit ? HitResult.Actor.Get() : nullptr;
-			if (ActorTags)
-			{
-				bHasValidTarget = ActorTags->HasAnyMatchingGameplayTags(RequiredGameplayTags);
-			}
-		}
-
-		if (AGameplayAbilityWorldReticle* LocalReticleActor = ReticleActor.Get())
-		{
-			const FVector ReticleLocation = (bHasValidTarget && LocalReticleActor->bSnapToTargetedActor) ? HitResult.Actor->GetActorLocation() : AdjustedEnd;
-
-			LocalReticleActor->SetActorLocation(ReticleLocation);
-			LocalReticleActor->SetIsTargetValid(bHasValidTarget);
-			LocalReticleActor->SetIsTargetAnActor(bHasValidTarget);
-		}
-
-#if 1
-		if (bDebug)
-		{
-			DrawDebugLine(GetWorld(), ViewStart, AdjustedEnd, FColor::Green);
-			DrawDebugSphere(GetWorld(), AdjustedEnd, 100.0f, 16, FColor::Green);
-		}
-#endif // ENABLE_DRAW_DEBUG
+		TryActivateAbilityByClass(UGameplayAbility_PlayerCursor::StaticClass());
 	}
-
-	return HitResult;
 }

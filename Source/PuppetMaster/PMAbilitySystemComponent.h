@@ -4,18 +4,20 @@
 
 #include "AbilitySystemComponent.h"
 #include "AbilitySystemInterface.h"
-#include "Abilities/GameplayAbilityTargetActor_Trace.h"
 
 #include "PMAbilitySystemComponent.generated.h"
 
 UENUM()
 enum class EAbilityBindings
 {
+	Ability0,
 	Ability1,
 	Ability2,
 	Ability3,
 	Ability4,
-	Ability5
+	Confirm,
+	Cancel,
+	Select,
 };
 
 UCLASS()
@@ -25,31 +27,16 @@ class UPMAbilitySystemComponent : public UAbilitySystemComponent
 
 public:
 
-	UPMAbilitySystemComponent(const FObjectInitializer& OI);
-
-	void InitAbilityActorInfo(AActor* InOwnerActor, AActor* InAvatarActor) override;
-
 	void SetupPlayerInputComponent(UInputComponent& InputComponent);
-
-};
-
-UCLASS()
-class AGameplayAbilityTargetActor_Cursor : public AGameplayAbilityTargetActor_Trace
-{
-	GENERATED_BODY()
 
 protected:
 
-	// the hit target is valid if it has any of these gameplay tags
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ExposeOnSpawn = true))
-	FGameplayTagContainer RequiredGameplayTags;
+	UPMAbilitySystemComponent(const FObjectInitializer& OI);
 
-	FHitResult PerformTrace(AActor* InSourceActor) override;
+	void BeginPlay() override;
 
-	bool IsConfirmTargetingAllowed() override { return bHasValidTarget; }
+	void InitAbilityActorInfo(AActor* InOwnerActor, AActor* InAvatarActor) override;
 
-private:
-
-	bool bHasValidTarget = false;
+	void OnPlayerControllerSet() override;
 
 };

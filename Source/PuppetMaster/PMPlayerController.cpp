@@ -66,8 +66,8 @@ void APMPlayerController::SetupInputComponent()
 	// set up gameplay key bindings
 	Super::SetupInputComponent();
 
-	FInputActionBinding& Binding = InputComponent->BindAction("SetDestination", IE_Pressed, this, &APMPlayerController::InputAction_SelectPressed);
-	Binding.bConsumeInput = false; // hack to get confirm ability to work on LMB
+	// FInputActionBinding& Binding = InputComponent->BindAction("SetDestination", IE_Pressed, this, &APMPlayerController::InputAction_SelectPressed);
+	// Binding.bConsumeInput = false; // hack to get confirm ability to work on LMB
 }
 
 void APMPlayerController::SetNewMoveDestination(const FVector& DestLocation)

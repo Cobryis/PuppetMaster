@@ -39,4 +39,9 @@ protected:
 
 	void OnPlayerControllerSet() override;
 
+private:
+
+	UPROPERTY()
+	TSubclassOf<UGameplayEffect> PlayerDefaultsGE;
+
 };

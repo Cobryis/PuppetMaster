@@ -22,8 +22,12 @@ UGameplayAbility_PlayerCursor::UGameplayAbility_PlayerCursor()
 
 	ReplicationPolicy = EGameplayAbilityReplicationPolicy::ReplicateYes;
 
-	// looks lik
+	// looks like this is required for ability tasks
 	InstancingPolicy = EGameplayAbilityInstancingPolicy::InstancedPerActor;
+
+	bReplicateInputDirectly = true;
+
+	AbilityTags.AddTagFast(FGameplayTag::RequestGameplayTag(TEXT("Ability.PlayerCursor")));
 
 	static ConstructorHelpers::FClassFinder<AGameplayAbilityWorldReticle> ReticleFinder(TEXT("/Game/GAS/Shared/GAR_Cursor"));
 	ReticleClass = ReticleFinder.Class;
@@ -71,15 +75,15 @@ void UGameplayAbility_PlayerCursor::EndAbility(const FGameplayAbilitySpecHandle 
 		CurrentTargetActor->Destroy();
 	}
 
-	if (IsValid(NavToTask))
-	{
-		NavToTask->EndTask();
-	}
+// 	if (IsValid(NavToTask))
+// 	{
+// 		NavToTask->EndTask();
+// 	}
 }
 
 void UGameplayAbility_PlayerCursor::InputPressed(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo)
 {
-	if (CurrentTargetActor.IsValid())
+	if (DoesAbilitySatisfyTagRequirements(*ActorInfo->AbilitySystemComponent) && CurrentTargetActor.IsValid())
 	{
 		CurrentTargetActor->InputPressed();
 	}
@@ -87,7 +91,7 @@ void UGameplayAbility_PlayerCursor::InputPressed(const FGameplayAbilitySpecHandl
 
 void UGameplayAbility_PlayerCursor::InputReleased(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo)
 {
-	if (CurrentTargetActor.IsValid())
+	if (DoesAbilitySatisfyTagRequirements(*ActorInfo->AbilitySystemComponent) && CurrentTargetActor.IsValid())
 	{
 		CurrentTargetActor->InputReleased();
 	}
@@ -106,11 +110,14 @@ void UGameplayAbility_PlayerCursor::OnTargetDataReady(const FGameplayAbilityTarg
 		Info->AbilitySystemComponent->CallServerSetReplicatedTargetData(GetCurrentAbilitySpecHandle(), GetCurrentActivationInfoRef().GetActivationPredictionKey(), TargetDataHandle, ApplicationTag, Info->AbilitySystemComponent->ScopedPredictionKey);
 	}
 
-	NavToTask = UAbilityTask_NavTo::NavTo(this, NAME_None, TargetDataHandle);
-	if (IsValid(NavToTask))
-	{
-		NavToTask->Activate();
-	}
+	FGameplayEventData CursorData;
+	CursorData.TargetData = TargetDataHandle;
+	SendGameplayEvent(FGameplayTag::RequestGameplayTag(TEXT("GameplayEvent.CursorActivate")), CursorData);
+// 	NavToTask = UAbilityTask_NavTo::NavTo(this, NAME_None, TargetDataHandle);
+// 	if (IsValid(NavToTask))
+// 	{
+// 		NavToTask->Activate();
+// 	}
 }
 
 void UGameplayAbility_PlayerCursor::OnTargetDataReplicatedCallback(const FGameplayAbilityTargetDataHandle& TargetDataHandle, FGameplayTag ActivationTag)

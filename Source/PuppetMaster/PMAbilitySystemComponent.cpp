@@ -16,7 +16,8 @@ void UPMAbilitySystemComponent::SetupPlayerInputComponent(UInputComponent& Input
 UPMAbilitySystemComponent::UPMAbilitySystemComponent(const FObjectInitializer& OI)
 	: Super(OI)
 {
-
+	static ConstructorHelpers::FClassFinder<UGameplayEffect> GameplayEffect(TEXT("/Game/GAS/Shared/GE_PlayerDefaults"));
+	PlayerDefaultsGE = GameplayEffect.Class;
 }
 
 void UPMAbilitySystemComponent::BeginPlay()
@@ -27,6 +28,9 @@ void UPMAbilitySystemComponent::BeginPlay()
 	{
 		FGameplayAbilitySpec PlayerCursorSpec{ UGameplayAbility_PlayerCursor::StaticClass(), 1, static_cast<int32>(EAbilityBindings::Select) };
 		GiveAbility(PlayerCursorSpec);
+
+		FGameplayEffectContextHandle InvalidHandle;
+		ApplyGameplayEffectToSelf(PlayerDefaultsGE.GetDefaultObject(), 0, InvalidHandle);
 	}
 }
 
